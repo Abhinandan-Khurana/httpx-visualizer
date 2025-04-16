@@ -1,0 +1,1812 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTTPx Visualizer</title>
+    <style>
+      :root {
+        --primary: #3498db;
+        --primary-dark: #2980b9;
+        --accent: #e74c3c;
+        --success: #2ecc71;
+        --warning: #f39c12;
+        --error: #e74c3c;
+        --info: #1abc9c; 
+        --redirect: #9b59b6;
+        --background: #f4f6f7;
+        --card-bg: #ffffff;
+        --text-dark: #2c3e50;
+        --text-light: #7f8c8d;
+        --border: #ecf0f1;
+        --hover: #f0f5f9; 
+        --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        --shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: var(--font-family);
+      }
+      body {
+        background-color: var(--background);
+        color: var(--text-dark);
+        line-height: 1.6;
+        padding: 25px;
+      }
+      .container {
+        max-width: 1400px; /* Wider container */
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid var(--border);
+      }
+      h1 {
+        font-size: 32px; /* Larger title */
+        font-weight: 600; /* Slightly bolder */
+        color: var(--primary);
+      }
+      .upload-container,
+      .stats-container,
+      .filters-container,
+      .results-container {
+        background-color: var(--card-bg);
+        border-radius: 10px; /* Smoother radius */
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: var(--shadow);
+      }
+      .upload-area {
+        border: 2px dashed var(--primary);
+        border-radius: 8px;
+        padding: 50px 30px; /* More padding */
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        background-color: #fdfdfe;
+      }
+      .upload-area:hover {
+        border-color: var(--accent);
+        background-color: rgba(231, 76, 60, 0.03);
+      }
+      .upload-area.dragover {
+        border-color: var(--success);
+        border-style: solid;
+        background-color: rgba(46, 204, 113, 0.05);
+      }
+      .upload-area input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .upload-icon {
+        font-size: 54px; /* Larger icon */
+        color: var(--primary);
+        margin-bottom: 15px;
+      }
+      .upload-text {
+        font-size: 16px;
+        color: var(--text-light);
+      }
+      .stats-container {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(180px, 1fr)
+        ); /* Adjusted minmax */
+        gap: 25px;
+      }
+      .stat-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid var(--border); /* Subtle border */
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      }
+      .stat-value {
+        font-size: 38px; /* Larger value */
+        font-weight: 700; /* Bolder */
+        margin-bottom: 5px;
+        color: var(--primary);
+      }
+      .stat-label {
+        font-size: 14px;
+        color: var(--text-light);
+        font-weight: 500;
+      }
+      .filters-container h3 {
+        margin-bottom: 20px;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+      }
+      .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(220px, 1fr)
+        ); /* Wider filter inputs */
+        gap: 20px;
+      }
+      .filter-group {
+        margin-bottom: 10px;
+      }
+      .filter-group label {
+        display: block;
+        margin-bottom: 8px; /* More space */
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .filter-group input,
+      .filter-group select {
+        width: 100%;
+        padding: 10px 14px; /* Larger padding */
+        border: 1px solid #ced4da; /* Standard border */
+        border-radius: 6px; /* Slightly larger radius */
+        font-size: 14px;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .filter-group input:focus,
+      .filter-group select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        outline: none;
+      }
+      /* Technology Filter Specific Styles */
+      #tech-filter-container {
+        position: relative;
+      }
+      #tech-filter {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      #tech-dropdown {
+        display: none;
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        z-index: 10;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        margin-top: 2px;
+      }
+      #tech-dropdown div {
+        padding: 8px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+      }
+      #tech-dropdown div:hover {
+        background-color: var(--hover);
+      }
+      #tech-dropdown input[type="checkbox"] {
+        margin-right: 8px;
+      }
+      #selected-techs {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .tech-pill {
+        background-color: var(--info);
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tech-pill button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+      }
+      .filter-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px; /* More space */
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      button {
+        padding: 10px 20px; /* Larger buttons */
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500; /* Medium weight */
+        transition: all 0.3s ease;
+      }
+      .btn-primary {
+        background-color: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        background-color: var(--primary-dark);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .btn-secondary {
+        background-color: #6c757d; /* Bootstrap secondary */
+        color: white;
+      }
+      .btn-secondary:hover {
+        background-color: #5a6268;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .btn-success {
+        background-color: var(--success);
+        color: white;
+      }
+      .btn-success:hover {
+        background-color: #28a745;
+      }
+      .results-container h3 {
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+      .results-table-wrapper {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        text-align: left;
+        padding: 14px 18px; /* More padding */
+        background-color: #e9ecef; /* Light grey header */
+        color: var(--text-dark);
+        font-weight: 600;
+        position: relative;
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 2px solid #dee2e6;
+      }
+      th:hover {
+        background-color: #dde2e6;
+      }
+      th::after {
+        content: "";
+        position: absolute;
+        right: 8px;
+        font-size: 12px;
+        opacity: 0.5;
+      }
+      th.sort-asc::after {
+        content: "▲";
+        opacity: 1;
+      }
+      th.sort-desc::after {
+        content: "▼";
+        opacity: 1;
+      }
+      td {
+        padding: 12px 18px; /* More padding */
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle; /* Align content vertically */
+      }
+      tr:hover {
+        background-color: var(--hover);
+      }
+      .status-pill {
+        padding: 5px 10px; /* Slightly larger */
+        border-radius: 15px; /* More rounded */
+        font-size: 12px;
+        color: white;
+        display: inline-block;
+        text-align: center;
+        min-width: 85px;
+        font-weight: 600; /* Bolder */
+        letter-spacing: 0.5px;
+      }
+      .status-2xx {
+        background-color: var(--success);
+      }
+      .status-3xx {
+        background-color: var(--redirect);
+      }
+      .status-4xx {
+        background-color: var(--warning);
+        color: #333; /* Better contrast for yellow */
+      }
+      .status-5xx {
+        background-color: var(--error);
+      }
+      .expand-row {
+        cursor: pointer;
+        font-size: 20px;
+        color: var(--primary);
+        text-align: center;
+        width: 50px; /* Fixed width */
+      }
+      .details-row {
+        display: none;
+        background-color: #f8f9fa; /* Slightly different bg */
+      }
+      .details-content {
+        padding: 20px 25px; /* More padding */
+      }
+      .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px 25px; /* Row and column gap */
+      }
+      .detail-group {
+        margin-bottom: 10px;
+      }
+      .detail-label {
+        font-weight: 600; /* Bolder label */
+        font-size: 12px;
+        color: var(--text-light);
+        margin-bottom: 4px;
+        text-transform: uppercase; /* Uppercase label */
+        letter-spacing: 0.5px;
+      }
+      .detail-value {
+        font-size: 14px;
+        word-break: break-all; /* Prevent overflow */
+      }
+      .tech-tag {
+        background-color: var(--info);
+        color: white;
+        padding: 3px 8px; /* Match pill style */
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 5px;
+        margin-bottom: 5px;
+        display: inline-block;
+      }
+      .loader {
+        display: none;
+        text-align: center;
+        padding: 40px 20px; /* More padding */
+      }
+      .loader-spinner {
+        border: 5px solid rgba(0, 0, 0, 0.1); /* Thicker */
+        border-radius: 50%;
+        border-top: 5px solid var(--primary);
+        width: 50px; /* Larger */
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .notification {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        padding: 15px 25px;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+        transform: translateY(20px);
+        max-width: 350px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+      }
+      .notification.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .no-results {
+        text-align: center;
+        padding: 50px 20px; /* More padding */
+        color: var(--text-light);
+        font-size: 16px;
+      }
+      .hidden {
+        display: none !important; /* Use important to override */
+      }
+      /* Pagination Styles */
+      .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        margin-top: 10px;
+      }
+      .pagination-controls button,
+      .pagination-controls span {
+        /* Style spans too */
+        margin: 0 3px; /* Reduced margin slightly */
+        padding: 8px 12px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border);
+        color: var(--primary);
+        cursor: pointer;
+        border-radius: 4px; /* Add radius */
+        display: inline-block; /* Ensure spans align */
+        vertical-align: middle;
+      }
+      .pagination-controls span {
+        /* Style spans differently */
+        cursor: default;
+        background: none;
+        border: none;
+        padding: 8px 4px; /* Less padding for ellipsis */
+      }
+      .pagination-controls button:disabled {
+        color: var(--text-light);
+        cursor: not-allowed;
+        background-color: var(--background);
+      }
+      .pagination-controls button.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        font-weight: bold;
+      }
+      .pagination-info {
+        font-size: 14px;
+        color: var(--text-light);
+      }
+
+      /* Responsive Styles */
+      @media (max-width: 992px) {
+        .filters-grid {
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        .details-grid {
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        }
+      }
+      @media (max-width: 768px) {
+        body {
+          padding: 15px;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .stats-container {
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 15px;
+        }
+        .filters-grid {
+          grid-template-columns: 1fr; /* Stack filters */
+        }
+        th,
+        td {
+          padding: 10px 12px;
+          font-size: 13px;
+        }
+        .pagination-container {
+          flex-direction: column;
+          gap: 10px;
+          padding: 15px 0;
+        }
+        .pagination-controls {
+          text-align: center; /* Center buttons on small screens */
+        }
+      }
+      @media (max-width: 480px) {
+        .stats-container {
+          grid-template-columns: 1fr;
+        }
+        .upload-area {
+          padding: 30px 15px;
+        }
+        button {
+          padding: 8px 15px;
+          font-size: 13px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+        .pagination-controls button,
+        .pagination-controls span {
+          padding: 6px 10px; /* Smaller padding */
+          margin: 0 2px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>HTTPx Visualizer</h1>
+        <div>
+          <button id="export-csv" class="btn-success">
+            Export Visible CSV
+          </button>
+        </div>
+      </header>
+
+      <div class="upload-container">
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept=".json" />
+          <div class="upload-icon">📤</div>
+          <h3>Upload HTTPx JSON Output</h3>
+          <p class="upload-text">
+            Drag & Drop your file here, or click to browse.
+          </p>
+        </div>
+        <div
+          id="file-info"
+          class="hidden"
+          style="margin-top: 15px; font-size: 14px; color: var(--text-light)"
+        >
+          File: <span id="file-name"></span> | Size:
+          <span id="file-size"></span>
+        </div>
+      </div>
+
+      <div id="loader" class="loader">
+        <div class="loader-spinner"></div>
+        <p>Processing your data, please wait...</p>
+      </div>
+
+      <div id="results-view" class="hidden">
+        <!-- Stats Section -->
+        <div class="stats-container" id="stats-container">
+          <div class="stat-card">
+            <div class="stat-value" id="total-domains">0</div>
+            <div class="stat-label">Domains Scanned</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="total-endpoints">0</div>
+            <div class="stat-label">Endpoints Found</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="success-count">0</div>
+            <div class="stat-label">Success (2xx)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="redirect-count">0</div>
+            <div class="stat-label">Redirects (3xx)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="client-error-count">0</div>
+            <div class="stat-label">Client Errors (4xx)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="server-error-count">0</div>
+            <div class="stat-label">Server Errors (5xx)</div>
+          </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-container">
+          <h3>Filter & Refine Results</h3>
+          <div class="filters-grid">
+            <div class="filter-group">
+              <label for="domain-filter">Domain Contains</label>
+              <input
+                type="text"
+                id="domain-filter"
+                placeholder="e.g., example.com"
+              />
+            </div>
+            <div class="filter-group">
+              <label for="status-filter">Status Code</label>
+              <select id="status-filter">
+                <option value="">All Status Codes</option>
+                <option value="2xx">2xx (Success)</option>
+                <option value="3xx">3xx (Redirect)</option>
+                <option value="4xx">4xx (Client Error)</option>
+                <option value="5xx">5xx (Server Error)</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="webserver-filter">Web Server Contains</label>
+              <input
+                type="text"
+                id="webserver-filter"
+                placeholder="e.g., nginx, Apache"
+              />
+            </div>
+            <div class="filter-group">
+              <label for="content-type-filter">Content Type Contains</label>
+              <input
+                type="text"
+                id="content-type-filter"
+                placeholder="e.g., html, json"
+              />
+            </div>
+            <!-- Technology Filter -->
+            <div class="filter-group" id="tech-filter-container">
+              <label for="tech-filter">Technologies (Select Multiple)</label>
+              <input
+                type="text"
+                id="tech-filter"
+                placeholder="Search technologies..."
+                readonly
+                style="cursor: pointer"
+              />
+              <div id="tech-dropdown">
+                <!-- Tech options will be populated here -->
+              </div>
+              <div id="selected-techs">
+                <!-- Selected tech pills will be shown here -->
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="title-filter">Title Contains</label>
+              <input
+                type="text"
+                id="title-filter"
+                placeholder="e.g., Login, Dashboard"
+              />
+            </div>
+          </div>
+          <div class="filter-buttons">
+            <button id="clear-filters" class="btn-secondary">
+              Clear All Filters
+            </button>
+            <button id="apply-filters" class="btn-primary">
+              Apply Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Results Table Section -->
+        <div class="results-container">
+          <h3>Scan Results</h3>
+          <div class="pagination-container" id="pagination-top">
+            <!-- Top Pagination will be added here -->
+          </div>
+          <div class="results-table-wrapper">
+            <table id="results-table">
+              <thead>
+                <tr>
+                  <th data-sort="domain_name">Domain</th>
+                  <th data-sort="url">URL</th>
+                  <th data-sort="status_code">Status</th>
+                  <th data-sort="title">Title</th>
+                  <th data-sort="webserver">Web Server</th>
+                  <th data-sort="content_type">Content Type</th>
+                  <th data-sort="tech">Technologies</th>
+                  <th data-sort="time">Response (ms)</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="results-body">
+                <!-- Results will be populated here -->
+              </tbody>
+            </table>
+          </div>
+          <div id="no-results" class="no-results hidden">
+            <p>🤷‍♂️ No results found matching your current filters.</p>
+          </div>
+          <div class="pagination-container" id="pagination-bottom">
+            <!-- Bottom Pagination will be added here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification-area"></div>
+
+    <script>
+      // --- CONFIGURATION ---
+      const ITEMS_PER_PAGE = 25; // Number of results per page
+
+      // --- GLOBAL STATE ---
+      let rawHttpxData = null; // Original uploaded data object
+      let allResults = []; // Flattened array of all result items
+      let filteredResults = []; // Results after filtering
+      let displayedResults = []; // Results for the current page
+      let uniqueTechnologies = new Set();
+      let selectedTechnologies = new Set();
+      let currentPage = 1;
+      let totalPages = 1;
+      let currentSortField = "domain_name";
+      let currentSortDirection = "asc";
+
+      // --- DOM ELEMENTS ---
+      const fileInput = document.getElementById("file-input");
+      const uploadArea = document.getElementById("upload-area");
+      const fileInfoDiv = document.getElementById("file-info");
+      const fileNameSpan = document.getElementById("file-name");
+      const fileSizeSpan = document.getElementById("file-size");
+      const loader = document.getElementById("loader");
+      const resultsView = document.getElementById("results-view");
+      const resultsTable = document.getElementById("results-table"); // <<< FIXED: Added this line
+      const resultsBody = document.getElementById("results-body");
+      const noResults = document.getElementById("no-results");
+      const notificationArea = document.getElementById("notification-area");
+      const paginationTop = document.getElementById("pagination-top");
+      const paginationBottom = document.getElementById("pagination-bottom");
+
+      // Stats Elements
+      const totalDomains = document.getElementById("total-domains");
+      const totalEndpoints = document.getElementById("total-endpoints");
+      const successCount = document.getElementById("success-count");
+      const redirectCount = document.getElementById("redirect-count");
+      const clientErrorCount = document.getElementById("client-error-count");
+      const serverErrorCount = document.getElementById("server-error-count");
+
+      // Filter Elements
+      const domainFilter = document.getElementById("domain-filter");
+      const statusFilter = document.getElementById("status-filter");
+      const webserverFilter = document.getElementById("webserver-filter");
+      const contentTypeFilter = document.getElementById("content-type-filter");
+      const titleFilter = document.getElementById("title-filter");
+      const techFilterInput = document.getElementById("tech-filter");
+      const techDropdown = document.getElementById("tech-dropdown");
+      const selectedTechsDiv = document.getElementById("selected-techs");
+      const applyFiltersBtn = document.getElementById("apply-filters");
+      const clearFiltersBtn = document.getElementById("clear-filters");
+
+      // Export Button
+      const exportCsvBtn = document.getElementById("export-csv");
+
+      // --- EVENT LISTENERS ---
+      document.addEventListener("DOMContentLoaded", setupEventListeners);
+
+      function setupEventListeners() {
+        // File Upload
+        fileInput.addEventListener("change", handleFileUpload);
+        uploadArea.addEventListener("dragover", handleDragOver);
+        uploadArea.addEventListener("dragleave", handleDragLeave);
+        uploadArea.addEventListener("drop", handleDrop);
+
+        // Filters
+        applyFiltersBtn.addEventListener("click", () => {
+          currentPage = 1;
+          applyAndRenderFilters();
+        });
+        clearFiltersBtn.addEventListener("click", clearAllFilters);
+        techFilterInput.addEventListener("click", toggleTechDropdown);
+        document.addEventListener("click", closeTechDropdownOnClickOutside);
+
+        // Table Sorting
+        document
+          .querySelectorAll("#results-table thead th[data-sort]")
+          .forEach((th) => {
+            // Be more specific
+            th.addEventListener("click", handleSortClick);
+          });
+
+        // Export Button
+        exportCsvBtn.addEventListener("click", exportVisibleToCsv);
+      }
+
+      // --- FILE HANDLING ---
+      function handleDragOver(e) {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      }
+      function handleDragLeave() {
+        uploadArea.classList.remove("dragover");
+      }
+      function handleDrop(e) {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
+        if (e.dataTransfer.files.length) {
+          const file = e.dataTransfer.files[0];
+          if (isValidFileType(file)) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileUpload();
+          } else {
+            showNotification(
+              "Invalid file type. Please drop a JSON file.",
+              "error",
+            );
+          }
+        }
+      }
+      function handleFileUpload() {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        if (!isValidFileType(file)) {
+          showNotification(
+            "Invalid file type. Please upload a JSON file.",
+            "error",
+          );
+          fileInput.value = ""; // Reset file input
+          return;
+        }
+
+        displayFileInfo(file);
+        loader.style.display = "block";
+        resultsView.classList.add("hidden"); // Hide results while processing
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            // Added check for empty file content
+            if (!e.target.result || e.target.result.trim() === "") {
+              throw new Error("File is empty.");
+            }
+            const data = JSON.parse(e.target.result);
+            if (!isValidHttpxJson(data)) {
+              throw new Error("Invalid or incomplete httpx JSON format.");
+            }
+            rawHttpxData = data;
+            processHttpxData();
+            showNotification(`Successfully processed ${file.name}!`, "success");
+          } catch (error) {
+            console.error("Error processing file:", error);
+            showNotification(
+              `Error processing file: ${error.message}`,
+              "error",
+            );
+            resetApp();
+          } finally {
+            loader.style.display = "none";
+          }
+        };
+        reader.onerror = function (err) {
+          console.error("FileReader error:", err);
+          showNotification(
+            `Error reading file: ${err.message || "Unknown error"}`,
+            "error",
+          );
+          resetApp();
+          loader.style.display = "none";
+        };
+        reader.readAsText(file);
+      }
+
+      function isValidFileType(file) {
+        return (
+          file &&
+          file.name.toLowerCase().endsWith(".json") &&
+          file.type === "application/json"
+        );
+      }
+
+      function displayFileInfo(file) {
+        fileNameSpan.textContent = file.name;
+        fileSizeSpan.textContent = formatBytes(file.size);
+        fileInfoDiv.classList.remove("hidden");
+      }
+
+      function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return "0 Bytes"; // Use +bytes to handle non-numeric input gracefully
+
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]; // Added more sizes
+
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        // Handle cases where bytes are extremely large
+        if (i >= sizes.length) {
+          return (
+            parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(dm)) +
+            " " +
+            sizes[sizes.length - 1]
+          );
+        }
+
+        return (
+          parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+        );
+      }
+
+      function isValidHttpxJson(data) {
+        // More robust check
+        return (
+          data &&
+          typeof data === "object" &&
+          !Array.isArray(data) && // Ensure it's an object, not an array
+          data.tool_name === "httpx" &&
+          Array.isArray(data.results) &&
+          // Check at least one domain structure (optional, depends on requirement)
+          (data.results.length === 0 || // Allow empty results array
+            (typeof data.results[0] === "object" &&
+              data.results[0] !== null &&
+              typeof data.results[0].domain_name === "string" &&
+              Array.isArray(data.results[0].results)))
+        );
+      }
+
+      function resetApp() {
+        rawHttpxData = null;
+        allResults = [];
+        filteredResults = [];
+        displayedResults = [];
+        uniqueTechnologies.clear();
+        selectedTechnologies.clear();
+        currentPage = 1;
+        totalPages = 1;
+        resultsBody.innerHTML = "";
+        paginationTop.innerHTML = "";
+        paginationBottom.innerHTML = "";
+        resultsView.classList.add("hidden");
+        fileInput.value = ""; // Reset file input
+        fileInfoDiv.classList.add("hidden");
+        clearFilterInputs(); // Clear filter fields
+        updateTechFilterDisplay(); // Clear tech dropdown/pills
+      }
+
+      // --- DATA PROCESSING ---
+      function processHttpxData() {
+        allResults = [];
+        uniqueTechnologies.clear();
+        let stats = { success: 0, redirect: 0, clientError: 0, serverError: 0 };
+
+        if (!rawHttpxData || !rawHttpxData.results) {
+          console.error("No results found in processed data.");
+          showNotification("Processed data appears empty or invalid.", "error");
+          return; // Exit processing
+        }
+
+        rawHttpxData.results.forEach((domain) => {
+          // Skip if domain or domain.results is invalid
+          if (!domain || !Array.isArray(domain.results)) {
+            console.warn("Skipping invalid domain entry:", domain);
+            return;
+          }
+
+          domain.results.forEach((result) => {
+            // Skip if result is invalid
+            if (!result || typeof result !== "object") {
+              console.warn(
+                "Skipping invalid result entry:",
+                result,
+                "in domain:",
+                domain.domain_name,
+              );
+              return;
+            }
+
+            const enrichedResult = {
+              ...result,
+              domain_name: domain.domain_name || "Unknown Domain", // Add domain name with fallback
+              tech:
+                result.tech && Array.isArray(result.tech) ? result.tech : [], // Ensure tech is always an array
+              time_ms: parseResponseTime(result.time), // Add numeric time for sorting
+              status_code:
+                typeof result.status_code === "number"
+                  ? result.status_code
+                  : null, // Ensure status_code is a number or null
+            };
+            allResults.push(enrichedResult);
+
+            // Update stats only if status_code is valid
+            const code = enrichedResult.status_code;
+            if (code !== null) {
+              if (code >= 200 && code < 300) stats.success++;
+              else if (code >= 300 && code < 400) stats.redirect++;
+              else if (code >= 400 && code < 500) stats.clientError++;
+              else if (code >= 500) stats.serverError++;
+            }
+
+            // Collect unique technologies
+            enrichedResult.tech.forEach((tech) => {
+              if (typeof tech === "string" && tech.trim() !== "") {
+                // Only add non-empty strings
+                uniqueTechnologies.add(tech.trim());
+              }
+            });
+          });
+        });
+
+        updateStatsDisplay(
+          rawHttpxData.results.length,
+          allResults.length,
+          stats,
+        );
+        populateTechFilter(); // Populate before applying filters
+        applyAndRenderFilters(); // Apply default filters (none) and render initial view
+
+        resultsView.classList.remove("hidden"); // Show results section
+      }
+
+      function parseResponseTime(timeString) {
+        if (!timeString || typeof timeString !== "string") return null;
+        // Adjusted regex to be more flexible with whitespace and case
+        const match = timeString.trim().match(/([\d.]+)\s*(ms|s)/i);
+        if (!match) return null;
+        const value = parseFloat(match[1]);
+        if (isNaN(value)) return null; // Ensure parsed value is a number
+        const unit = match[2].toLowerCase();
+        return unit === "s" ? value * 1000 : value;
+      }
+
+      function updateStatsDisplay(domainCount, endpointCount, stats) {
+        totalDomains.textContent = domainCount || 0;
+        totalEndpoints.textContent = endpointCount || 0;
+        successCount.textContent = stats.success || 0;
+        redirectCount.textContent = stats.redirect || 0;
+        clientErrorCount.textContent = stats.clientError || 0;
+        serverErrorCount.textContent = stats.serverError || 0;
+      }
+
+      // --- FILTERING ---
+
+      function populateTechFilter() {
+        techDropdown.innerHTML = ""; // Clear previous options
+        const sortedTechs = Array.from(uniqueTechnologies).sort((a, b) =>
+          a.toLowerCase().localeCompare(b.toLowerCase()),
+        );
+
+        if (sortedTechs.length === 0) {
+          techDropdown.innerHTML =
+            '<div style="padding: 10px; color: var(--text-light); font-style: italic;">No technologies detected</div>';
+        } else {
+          sortedTechs.forEach((tech) => {
+            const div = document.createElement("div");
+            div.title = tech; // Add tooltip for long names
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            // Use a safe ID format (e.g., replacing special chars)
+            const techId = `tech-${tech.replace(/[^a-zA-Z0-9]/g, "-")}`;
+            checkbox.id = techId;
+            checkbox.value = tech;
+            checkbox.checked = selectedTechnologies.has(tech);
+            checkbox.addEventListener("change", (e) => {
+              const techValue = e.target.value; // Get value from target
+              if (e.target.checked) {
+                selectedTechnologies.add(techValue);
+              } else {
+                selectedTechnologies.delete(techValue);
+              }
+              updateTechFilterDisplay();
+              // Automatically apply filter on change? Optional.
+              // applyAndRenderFilters();
+            });
+
+            const label = document.createElement("label");
+            label.htmlFor = techId;
+            // Truncate long tech names visually in the dropdown
+            label.textContent = truncate(tech, 30);
+            label.style.marginLeft = "8px"; // Spacing
+            label.style.cursor = "pointer"; // Indicate clickable
+            label.style.flexGrow = "1"; // Allow label to take space
+
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            techDropdown.appendChild(div);
+          });
+        }
+        updateTechFilterDisplay(); // Update placeholder initially
+      }
+
+      function updateTechFilterDisplay() {
+        // Update pills
+        selectedTechsDiv.innerHTML = "";
+        selectedTechnologies.forEach((tech) => {
+          const pill = document.createElement("span");
+          pill.className = "tech-pill";
+          pill.textContent = truncate(tech, 20); // Truncate in pill too
+          pill.title = tech; // Tooltip for full name
+          const removeBtn = document.createElement("button");
+          removeBtn.innerHTML = "&times;"; // 'x' symbol
+          removeBtn.title = `Remove ${tech}`;
+          removeBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent dropdown from closing if open
+            selectedTechnologies.delete(tech);
+            const techId = `tech-${tech.replace(/[^a-zA-Z0-9]/g, "-")}`;
+            const checkbox = document.getElementById(techId);
+            if (checkbox) checkbox.checked = false;
+            updateTechFilterDisplay();
+            // Automatically apply filter on removal? Optional.
+            // applyAndRenderFilters();
+          };
+          pill.appendChild(removeBtn);
+          selectedTechsDiv.appendChild(pill);
+        });
+
+        // Update placeholder text
+        if (selectedTechnologies.size > 0) {
+          techFilterInput.value = `${selectedTechnologies.size} technologies selected`; // Use value for readonly input
+          techFilterInput.placeholder = ""; // Clear placeholder
+        } else {
+          techFilterInput.value = ""; // Clear value
+          techFilterInput.placeholder = "Search or select technologies...";
+        }
+      }
+
+      function toggleTechDropdown(event) {
+        event.stopPropagation(); // Prevent document click listener from firing immediately
+        techDropdown.style.display =
+          techDropdown.style.display === "block" ? "none" : "block";
+      }
+
+      function closeTechDropdownOnClickOutside(event) {
+        // Check if the click is outside the filter input AND outside the dropdown itself
+        if (
+          !techFilterInput.contains(event.target) &&
+          !techDropdown.contains(event.target)
+        ) {
+          if (techDropdown.style.display === "block") {
+            techDropdown.style.display = "none";
+          }
+        }
+      }
+
+      function applyAndRenderFilters() {
+        applyFilters();
+        sortData(); // Sort the filtered data
+        renderResultsPage(); // Render the first page
+      }
+
+      function applyFilters() {
+        const domainValue = domainFilter.value.trim().toLowerCase();
+        const statusValue = statusFilter.value;
+        const webserverValue = webserverFilter.value.trim().toLowerCase();
+        const contentTypeValue = contentTypeFilter.value.trim().toLowerCase();
+        const titleValue = titleFilter.value.trim().toLowerCase();
+
+        filteredResults = allResults.filter((item) => {
+          // Domain Filter
+          if (
+            domainValue &&
+            !(item.domain_name || "").toLowerCase().includes(domainValue)
+          )
+            return false;
+
+          // Status Code Filter
+          if (statusValue) {
+            const code = item.status_code;
+            if (code === null && statusValue !== "") return false; // Don't match null status unless filter is 'All'
+
+            if (statusValue === "2xx" && (code < 200 || code >= 300))
+              return false;
+            if (statusValue === "3xx" && (code < 300 || code >= 400))
+              return false;
+            if (statusValue === "4xx" && (code < 400 || code >= 500))
+              return false;
+            if (statusValue === "5xx" && code < 500) return false;
+            // Handle 'other' more precisely: not null and not in standard ranges
+            if (
+              statusValue === "other" &&
+              code !== null &&
+              code >= 200 &&
+              code < 600
+            )
+              return false;
+          }
+
+          // Web Server Filter
+          if (
+            webserverValue &&
+            !(item.webserver || "").toLowerCase().includes(webserverValue)
+          )
+            return false;
+
+          // Content Type Filter
+          if (
+            contentTypeValue &&
+            !(item.content_type || "").toLowerCase().includes(contentTypeValue)
+          )
+            return false;
+
+          // Title Filter
+          if (
+            titleValue &&
+            !(item.title || "").toLowerCase().includes(titleValue)
+          )
+            return false;
+
+          // Technology Filter (Match ALL selected technologies - changed logic)
+          // if (selectedTechnologies.size > 0) {
+          //    const itemTechsLower = new Set((item.tech || []).map(t => typeof t === 'string' ? t.toLowerCase() : ''));
+          //    for (const selectedTech of selectedTechnologies) {
+          //        if (!itemTechsLower.has(selectedTech.toLowerCase())) {
+          //            return false; // Item must have ALL selected techs
+          //        }
+          //    }
+          // }
+          // Technology Filter (Match ANY selected technology - reverted logic based on common use case)
+          if (selectedTechnologies.size > 0) {
+            const itemTechsLower = new Set(
+              (item.tech || []).map((t) =>
+                typeof t === "string" ? t.toLowerCase() : "",
+              ),
+            );
+            let matchFound = false;
+            for (const selectedTech of selectedTechnologies) {
+              if (itemTechsLower.has(selectedTech.toLowerCase())) {
+                matchFound = true;
+                break; // Found one match, that's enough
+              }
+            }
+            if (!matchFound) return false; // If no selected tech was found in the item's techs
+          }
+
+          return true; // Item passes all filters
+        });
+
+        // Reset to page 1 after filtering
+        currentPage = 1;
+      }
+
+      function clearAllFilters() {
+        clearFilterInputs();
+        selectedTechnologies.clear();
+        updateTechFilterDisplay();
+        populateTechFilter(); // Repopulate to reset checkboxes
+        applyAndRenderFilters();
+        showNotification("Filters cleared.", "info");
+      }
+
+      function clearFilterInputs() {
+        domainFilter.value = "";
+        statusFilter.value = "";
+        webserverFilter.value = "";
+        contentTypeFilter.value = "";
+        titleFilter.value = "";
+      }
+
+      // --- SORTING ---
+      function handleSortClick(event) {
+        const th = event.currentTarget;
+        const field = th.getAttribute("data-sort");
+        if (!field) return;
+
+        if (currentSortField === field) {
+          currentSortDirection =
+            currentSortDirection === "asc" ? "desc" : "asc";
+        } else {
+          currentSortField = field;
+          currentSortDirection = "asc";
+        }
+        updateTableHeaders();
+        sortData(); // Re-sort the already filtered data
+        renderResultsPage(); // Re-render the current page with new sort order
+      }
+
+      function sortData() {
+        filteredResults.sort((a, b) => {
+          let valA = a[currentSortField];
+          let valB = b[currentSortField];
+
+          // Use pre-calculated numeric time
+          if (currentSortField === "time") {
+            valA = a.time_ms;
+            valB = b.time_ms;
+          }
+
+          // Sort by number of technologies detected
+          if (currentSortField === "tech") {
+            valA = a.tech ? a.tech.length : 0;
+            valB = b.tech ? b.tech.length : 0;
+          }
+
+          // Consistent null handling: nulls/undefined go last in ascending, first in descending
+          const sortOrder = currentSortDirection === "asc" ? 1 : -1;
+          if (valA == null && valB == null) return 0;
+          if (valA == null) return 1 * sortOrder; // a is null, goes "later" in asc
+          if (valB == null) return -1 * sortOrder; // b is null, goes "later" in asc
+
+          // Comparison logic
+          if (typeof valA === "number" && typeof valB === "number") {
+            return (valA - valB) * sortOrder;
+          } else {
+            // LocaleCompare for strings, case-insensitive
+            return (
+              String(valA).localeCompare(String(valB), undefined, {
+                sensitivity: "base",
+              }) * sortOrder
+            );
+          }
+        });
+      }
+
+      function updateTableHeaders() {
+        document
+          .querySelectorAll("#results-table thead th[data-sort]")
+          .forEach((th) => {
+            th.classList.remove("sort-asc", "sort-desc");
+            if (th.getAttribute("data-sort") === currentSortField) {
+              th.classList.add(
+                currentSortDirection === "asc" ? "sort-asc" : "sort-desc",
+              );
+            }
+          });
+      }
+
+      // --- RENDERING & PAGINATION ---
+      function renderResultsPage() {
+        totalPages = Math.ceil(filteredResults.length / ITEMS_PER_PAGE) || 1;
+        if (currentPage > totalPages) currentPage = totalPages; // Adjust if page number is invalid
+        if (currentPage < 1) currentPage = 1; // Ensure current page is at least 1
+
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        displayedResults = filteredResults.slice(startIndex, endIndex); // Get results for the current page
+
+        renderTableBody(displayedResults);
+        renderPaginationControls();
+      }
+
+      function renderTableBody(resultsToRender) {
+        resultsBody.innerHTML = ""; // Clear previous results
+
+        if (!resultsTable) {
+          // Guard against null resultsTable
+          console.error("resultsTable element not found!");
+          return;
+        }
+
+        if (resultsToRender.length === 0) {
+          noResults.classList.remove("hidden");
+          resultsTable.classList.add("hidden"); // Hide table if no results
+          paginationTop.classList.add("hidden"); // Hide pagination
+          paginationBottom.classList.add("hidden");
+          return;
+        }
+
+        noResults.classList.add("hidden");
+        resultsTable.classList.remove("hidden"); // Show table
+        paginationTop.classList.remove("hidden"); // Show pagination
+        paginationBottom.classList.remove("hidden");
+
+        const fragment = document.createDocumentFragment();
+
+        resultsToRender.forEach((item, index) => {
+          const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index; // Index in the filteredResults array
+          // Main row
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td title="${escapeHtml(item.domain_name)}">${escapeHtml(truncate(item.domain_name, 30))}</td>
+                    <td><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.url)}">${escapeHtml(truncate(item.url, 40))}</a></td>
+                    <td><span class="status-pill status-${getStatusCodeClass(item.status_code)}">${item.status_code !== null ? item.status_code : "N/A"}</span></td>
+                    <td title="${escapeHtml(item.title)}">${escapeHtml(truncate(item.title, 35))}</td>
+                    <td title="${escapeHtml(item.webserver)}">${escapeHtml(truncate(item.webserver, 25))}</td>
+                    <td title="${escapeHtml(item.content_type)}">${escapeHtml(truncate(item.content_type, 25))}</td>
+                     <td>
+                        ${
+                          item.tech && item.tech.length > 0
+                            ? item.tech
+                                .slice(0, 2)
+                                .map(
+                                  (t) =>
+                                    `<span class="tech-tag" title="${escapeHtml(t)}">${escapeHtml(truncate(t, 15))}</span>`,
+                                )
+                                .join("") +
+                              (item.tech.length > 2
+                                ? ` <span class="tech-tag" title="${item.tech.length - 2} more technologies">+${item.tech.length - 2}</span>`
+                                : "")
+                            : '<em style="color: var(--text-light);">None</em>'
+                        }
+                    </td>
+                    <td>${item.time_ms != null ? `${item.time_ms.toFixed(0)} ms` : '<span style="color: var(--text-light);">N/A</span>'}</td>
+                    <td class="expand-row" data-index="${globalIndex}" title="Toggle Details">▼</td>
+                `;
+          fragment.appendChild(row);
+
+          // Details row (initially hidden)
+          const detailsRow = createDetailsRow(item, globalIndex);
+          fragment.appendChild(detailsRow);
+        });
+        resultsBody.appendChild(fragment);
+
+        // Add click event listeners for expand buttons *after* rows are added to DOM
+        resultsBody.querySelectorAll(".expand-row").forEach((button) => {
+          button.removeEventListener("click", handleExpandRow); // Remove old listener if any
+          button.addEventListener("click", handleExpandRow);
+        });
+      }
+
+      function getStatusCodeClass(code) {
+        if (code === null) return "other"; // Class for N/A status
+        if (code >= 200 && code < 300) return "2xx";
+        if (code >= 300 && code < 400) return "3xx";
+        if (code >= 400 && code < 500) return "4xx";
+        if (code >= 500 && code < 600) return "5xx";
+        return "other"; // Default class for non-standard codes
+      }
+
+      function handleExpandRow(event) {
+        const button = event.currentTarget;
+        const index = button.getAttribute("data-index");
+        const detailsRow = document.getElementById(`details-${index}`);
+        if (detailsRow) {
+          if (detailsRow.style.display === "table-row") {
+            detailsRow.style.display = "none";
+            button.textContent = "▼";
+          } else {
+            detailsRow.style.display = "table-row";
+            button.textContent = "▲";
+          }
+        } else {
+          console.warn("Details row not found for index:", index);
+        }
+      }
+
+      function createDetailsRow(item, index) {
+        const detailsRow = document.createElement("tr");
+        detailsRow.className = "details-row"; // Initially hidden by CSS
+        detailsRow.id = `details-${index}`;
+        const detailsContent = document.createElement("td");
+        detailsContent.colSpan = 9; // Adjust colspan to match number of columns
+        detailsContent.className = "details-content";
+
+        // Helper function to create detail groups more safely
+        const createDetail = (label, value) => {
+          // Only render if value is not null, undefined, or an empty string
+          const displayValue =
+            value !== null && value !== undefined && value !== ""
+              ? String(value)
+              : null;
+          if (displayValue === null) return "";
+
+          return `
+                  <div class="detail-group">
+                      <div class="detail-label">${escapeHtml(label)}</div>
+                      <div class="detail-value">${escapeHtml(displayValue)}</div>
+                  </div>`;
+        };
+
+        const createListDetail = (label, values) => {
+          if (!values || !Array.isArray(values) || values.length === 0)
+            return "";
+          // Filter out empty strings/nulls before joining
+          const filteredValues = values
+            .filter((v) => v != null && String(v).trim() !== "")
+            .map(escapeHtml)
+            .join(", ");
+          if (!filteredValues) return ""; // Don't render if all values were empty
+          return `
+                   <div class="detail-group">
+                       <div class="detail-label">${escapeHtml(label)}</div>
+                       <div class="detail-value">${filteredValues}</div>
+                   </div>`;
+        };
+
+        const createTechList = (techs) => {
+          if (!techs || !Array.isArray(techs) || techs.length === 0) return "";
+          // Filter out empty strings/nulls
+          const validTechs = techs.filter(
+            (t) => t != null && String(t).trim() !== "",
+          );
+          if (validTechs.length === 0) return "";
+
+          return `
+                    <div class="detail-group" style="grid-column: 1 / -1;">
+                        <div class="detail-label">Detected Technologies</div>
+                        <div class="detail-value">
+                            ${validTechs.map((t) => `<span class="tech-tag" title="${escapeHtml(t)}">${escapeHtml(truncate(t, 30))}</span>`).join(" ")}
+                        </div>
+                    </div>`;
+        };
+
+        const createBodyPreview = (body) => {
+          // Only show if body is a non-empty string
+          if (!body || typeof body !== "string" || body.trim() === "")
+            return "";
+          return `
+                    <div class="detail-group" style="grid-column: 1 / -1;">
+                        <div class="detail-label">Response Body Preview (Max 1000 chars)</div>
+                        <div class="detail-value">
+                            <pre style="max-height: 200px; overflow: auto; background: #eee; padding: 10px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(body.substring(0, 1000))}${body.length > 1000 ? "..." : ""}</pre>
+                        </div>
+                    </div>`;
+        };
+
+        // Build details grid HTML using the helper functions
+        detailsContent.innerHTML = `
+              <div class="details-grid">
+                  ${createDetail("Full URL", item.url)}
+                  ${createDetail("Timestamp", item.timestamp)}
+                  ${createDetail("Input", item.input)}
+                  ${createDetail("Method", item.method)}
+                  ${createDetail("Scheme", item.scheme)}
+                  ${createDetail("Host", item.host)}
+                  ${createDetail("Path", item.path)}
+                  ${createDetail("Content Length", item.content_length)}
+                  ${createDetail("Word Count", item.words)}
+                  ${createDetail("Line Count", item.lines)}
+                  ${createDetail("Response Time (raw)", item.time)}
+                  ${createListDetail("A Records", item.a)}
+                  ${createListDetail("CNAME Records", item.cname)}
+                  ${createDetail("Final URL (after redirects)", item.final_url)}
+                  ${createDetail("Location Header (redirect)", item.location)}
+                   ${createTechList(item.tech)}
+                   ${createBodyPreview(item.body || item.http_body)} ${/* Use item.body if present, else item.http_body */ ""}
+              </div>`;
+
+        detailsRow.appendChild(detailsContent);
+        return detailsRow;
+      }
+
+      function renderPaginationControls() {
+        // Only render if totalPages > 1
+        if (totalPages <= 1) {
+          paginationTop.innerHTML = "";
+          paginationBottom.innerHTML = "";
+          return; // Exit if no pagination needed
+        }
+
+        const paginationHtml = generatePaginationHtml(currentPage, totalPages);
+        paginationTop.innerHTML = paginationHtml;
+        paginationBottom.innerHTML = paginationHtml;
+
+        // Add event listeners to newly created buttons
+        document
+          .querySelectorAll(".pagination-controls button[data-page]")
+          .forEach((button) => {
+            // Only target buttons with data-page
+            button.removeEventListener("click", handlePageChange); // Remove previous listener first
+            button.addEventListener("click", handlePageChange);
+          });
+      }
+
+      // Event handler for page change
+      function handlePageChange(event) {
+        const newPage = parseInt(event.currentTarget.dataset.page);
+        if (!isNaN(newPage)) {
+          changePage(newPage);
+        }
+      }
+
+      function generatePaginationHtml(currentPage, totalPages) {
+        if (totalPages <= 1) return ""; // No controls if only one page
+
+        const info = `<div class="pagination-info">Page ${currentPage} of ${totalPages} (${filteredResults.length} results)</div>`;
+        let controls = '<div class="pagination-controls">';
+
+        // Previous Button
+        controls += `<button data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled aria-disabled="true"' : 'aria-label="Previous Page"'}>&laquo; Prev</button>`;
+
+        // Page Number Buttons (with ellipsis)
+        const MAX_VISIBLE_PAGES = 5; // Total buttons to show (e.g., 1 ... 4 5 6 ... 10)
+        const SIDE_BUTTONS = 1; // Number of buttons directly next to current page
+
+        if (totalPages <= MAX_VISIBLE_PAGES) {
+          // Show all pages if total is small
+          for (let i = 1; i <= totalPages; i++) {
+            controls += `<button data-page="${i}" ${i === currentPage ? 'class="active" aria-current="page"' : ""} aria-label="Page ${i}">${i}</button>`;
+          }
+        } else {
+          // Show first page
+          controls += `<button data-page="1" ${1 === currentPage ? 'class="active" aria-current="page"' : ""} aria-label="Page 1">1</button>`;
+
+          // Ellipsis after first page?
+          if (currentPage > SIDE_BUTTONS + 2) {
+            controls += `<span>...</span>`;
+          }
+
+          // Pages around current page
+          const startPage = Math.max(2, currentPage - SIDE_BUTTONS);
+          const endPage = Math.min(totalPages - 1, currentPage + SIDE_BUTTONS);
+
+          for (let i = startPage; i <= endPage; i++) {
+            controls += `<button data-page="${i}" ${i === currentPage ? 'class="active" aria-current="page"' : ""} aria-label="Page ${i}">${i}</button>`;
+          }
+
+          // Ellipsis before last page?
+          if (currentPage < totalPages - SIDE_BUTTONS - 1) {
+            controls += `<span>...</span>`;
+          }
+
+          // Show last page
+          controls += `<button data-page="${totalPages}" ${totalPages === currentPage ? 'class="active" aria-current="page"' : ""} aria-label="Page ${totalPages}">${totalPages}</button>`;
+        }
+
+        // Next Button
+        controls += `<button data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled aria-disabled="true"' : 'aria-label="Next Page"'}>Next &raquo;</button>`;
+        controls += "</div>";
+
+        // Combine info and controls. Decide layout based on screen size maybe?
+        // For now, just concatenate them.
+        return info + controls;
+      }
+
+      function changePage(newPage) {
+        if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+          // Only change if valid and different
+          currentPage = newPage;
+          renderResultsPage();
+          // Optional: Scroll to top of results table for better UX
+          const resultsContainer = document.querySelector(".results-container");
+          if (resultsContainer) {
+            resultsContainer.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }
+      }
+
+      // --- UTILITIES ---
+      function escapeHtml(str) {
+        // Ensure input is a string
+        const string = String(str || ""); // Convert null/undefined to empty string
+        return string
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function truncate(str, maxLength) {
+        const string = String(str || "");
+        if (string.length <= maxLength) return string;
+        return string.substring(0, maxLength) + "...";
+      }
+
+      function showNotification(message, type = "info", duration = 3500) {
+        const id = `notif-${Date.now()}`;
+        const notification = document.createElement("div");
+        notification.id = id;
+        notification.className = `notification type-${type}`; // Use class for type styling
+        notification.setAttribute("role", "alert"); // Accessibility
+        notification.textContent = message;
+
+        // Set background color based on type (can also be done via CSS classes)
+        notification.style.backgroundColor =
+          type === "success"
+            ? "var(--success)"
+            : type === "error"
+              ? "var(--error)"
+              : type === "warning"
+                ? "var(--warning)"
+                : "var(--info)"; // Default to info
+
+        // Prepend to keep newer notifications on top
+        notificationArea.prepend(notification);
+
+        // Animate in
+        requestAnimationFrame(() => {
+          // Ensure element is in DOM before animating
+          notification.classList.add("show");
+        });
+
+        // Auto-dismiss
+        setTimeout(() => {
+          notification.classList.remove("show");
+          // Remove from DOM after transition ends
+          notification.addEventListener(
+            "transitionend",
+            () => {
+              if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+              }
+            },
+            { once: true },
+          );
+        }, duration);
+      }
+
+      // --- EXPORT ---
+      function exportVisibleToCsv() {
+        if (!displayedResults || displayedResults.length === 0) {
+          showNotification("No data currently visible to export.", "warning");
+          return;
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        exportDataToCsv(
+          displayedResults,
+          `httpx-visible-p${currentPage}-${timestamp}.csv`,
+        );
+      }
+
+      // Generic CSV Exporter
+      function exportDataToCsv(data, filename) {
+        // Define headers carefully, matching the data structure
+        const headers = [
+          "domain_name",
+          "url",
+          "status_code",
+          "title",
+          "webserver",
+          "content_type",
+          "tech",
+          "time",
+          "time_ms",
+          "timestamp",
+          "method",
+          "host",
+          "path",
+          "content_length",
+          "words",
+          "lines",
+          "location",
+          "final_url",
+          "a",
+          "cname",
+          "input",
+          "scheme", // Added more fields
+        ];
+        let csvContent = headers.join(",") + "\n";
+
+        data.forEach((item) => {
+          const row = headers.map((header) => {
+            let value = item[header];
+
+            // Special handling for arrays (like tech, a, cname)
+            if (Array.isArray(value)) {
+              // Filter out null/empty strings before joining
+              value = value
+                .filter((v) => v != null && String(v).trim() !== "")
+                .join("; ");
+            }
+
+            value = value != null ? String(value) : ""; // Ensure value is a string or empty
+
+            // Escape quotes and wrap in quotes if contains comma, newline or double quote
+            if (
+              value.includes(",") ||
+              value.includes('"') ||
+              value.includes("\n")
+            ) {
+              // Replace standalone double quotes with two double quotes
+              value = '"' + value.replace(/"/g, '""') + '"';
+            }
+            return value;
+          });
+          csvContent += row.join(",") + "\n";
+        });
+
+        // Create download link using Blob for better compatibility
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+
+        // Use FileSaver.js logic if available, otherwise fallback
+        if (navigator.msSaveBlob) {
+          // IE 10+
+          navigator.msSaveBlob(blob, filename);
+        } else {
+          const link = document.createElement("a");
+          if (link.download !== undefined) {
+            // Browsers that support HTML5 download attribute
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url); // Clean up Blob URL
+          } else {
+            showNotification(
+              "CSV export download not fully supported in this browser.",
+              "warning",
+            );
+          }
+        }
+
+        showNotification("Export successful!", "success");
+      }
+    </script>
+  </body>
+</html>

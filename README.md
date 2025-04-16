@@ -2,7 +2,8 @@
 
 A browser-based, single-file tool to visually parse, filter, sort, and explore HTTPx JSON output. This enhanced version provides a more refined UI and advanced features for efficient analysis of web scan results.
 
-> ![NOTE] MADE BY : Claude 3.7 Sonnet (Thinking) and enhanced by Gemini 2.5 pro 😝
+> [!NOTE]
+> MADE BY : Claude 3.7 Sonnet (Thinking) and enhanced by Gemini 2.5 pro 😝
 
 ---
 
@@ -28,7 +29,7 @@ A browser-based, single-file tool to visually parse, filter, sort, and explore H
 1. **Get the File:** Download the `httpx-visualizer.html` file from this repository.
 2. **Open in Browser:** Open the downloaded HTML file in your web browser (Firefox, Chrome, Edge, etc.).
 3. **Upload Data:**
-    - Run your `httpx` scan with the `-json` flag:
+   - Run your `httpx` scan with the `-json` flag:
 
 ```bash
 cat input.txt | httpx -nc -silent -random-agent -probe -cdn -asn -extract-fqdn -cname -ip -td -server -favicon -j > results.json
@@ -36,7 +37,7 @@ cat input.txt | httpx -nc -silent -random-agent -probe -cdn -asn -extract-fqdn -
 
 - Drag and drop the generated `results.json` file onto the upload area in the visualizer, or click the area to browse and select the file.
 
-4.  **Explore:** The visualizer will process the file and display the results. Use the filters, sorting, pagination, and expandable rows to analyze your data.
+4. **Explore:** The visualizer will process the file and display the results. Use the filters, sorting, pagination, and expandable rows to analyze your data.
 
 ## Input Format
 

@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTTPX Output Visualizer</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        line-height: 1.6;
+        padding: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
+      }
+      #drop-area {
+        border: 2px dashed #ccc;
+        border-radius: 5px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 20px;
+        background-color: #fff;
+        cursor: pointer;
+        transition:
+          background-color 0.3s,
+          border-color 0.3s;
+      }
+      #drop-area.highlight {
+        border-color: purple;
+      }
+      #file-input {
+        display: none;
+      }
+      #controls {
+        margin-bottom: 20px;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        transition:
+          background-color 0.3s,
+          box-shadow 0.3s;
+      }
+      #controls label {
+        margin-right: 5px;
+        font-weight: bold;
+      }
+      #controls input[type="text"],
+      #controls select {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        flex-grow: 1;
+        min-width: 120px;
+        transition:
+          background-color 0.3s,
+          border-color 0.3s,
+          color 0.3s;
+      }
+      #controls button {
+        padding: 8px 15px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+        border: none;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+      }
+      #controls button:hover {
+        background-color: #0056b3;
+      }
+      #controls button#toggle-dark-mode {
+        background-color: #6c757d;
+      }
+      #controls button#toggle-dark-mode:hover {
+        background-color: #5a6268;
+      }
+      #results {
+        margin-top: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition:
+          background-color 0.3s,
+          box-shadow 0.3s;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+        transition: border-color 0.3s;
+      }
+      th {
+        background-color: #e9ecef;
+        font-weight: bold;
+        transition: background-color 0.3s;
+      }
+      tr:nth-child(even) {
+        background-color: #f8f9fa;
+        transition: background-color 0.3s;
+      }
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+      .status-success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .status-error {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .status-other {
+        color: #fd7e14;
+      }
+      .failed-true {
+        background-color: rgba(255, 0, 0, 0.1);
+      } /* Light red tint */
+      .failed-false {
+        background-color: rgba(0, 255, 0, 0.05);
+      } /* Light green tint */
+      .details {
+        display: none;
+        background-color: #eee;
+        transition: background-color 0.3s;
+      }
+      .details td {
+        padding: 15px;
+      } /* More padding for details */
+      .details pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: #fff;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 0.9em;
+        transition:
+          background-color 0.3s,
+          border-color 0.3s;
+      }
+      .toggle-details {
+        cursor: pointer;
+        color: #007bff;
+        text-decoration: underline;
+        font-size: 0.9em;
+      }
+      #summary {
+        margin-bottom: 15px;
+        font-weight: bold;
+        padding: 10px;
+        background-color: #e9ecef;
+        border-radius: 3px;
+        transition: background-color 0.3s;
+      }
+      a {
+        color: #007bff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* Dark Mode Styles */
+      body.dark-mode {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+      }
+      body.dark-mode #drop-area {
+        background-color: #2a2a2a;
+        border-color: #555;
+      }
+      body.dark-mode #drop-area.highlight {
+        border-color: #a06cd5;
+      } /* Brighter purple for dark mode */
+      body.dark-mode #controls {
+        background-color: #2a2a2a;
+        box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+      }
+      body.dark-mode #controls label {
+        color: #e0e0e0;
+      }
+      body.dark-mode #controls input[type="text"],
+      body.dark-mode #controls select {
+        background-color: #333;
+        border: 1px solid #555;
+        color: #e0e0e0;
+      }
+      body.dark-mode #controls button {
+        background-color: #0d6efd;
+      } /* Slightly brighter blue for dark mode */
+      body.dark-mode #controls button:hover {
+        background-color: #0b5ed7;
+      }
+      body.dark-mode #controls button#toggle-dark-mode {
+        background-color: #495057;
+      }
+      body.dark-mode #controls button#toggle-dark-mode:hover {
+        background-color: #3e444a;
+      }
+      body.dark-mode table {
+        background-color: #2a2a2a;
+        box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+      }
+      body.dark-mode th,
+      body.dark-mode td {
+        border: 1px solid #444;
+      }
+      body.dark-mode th {
+        background-color: #333;
+      }
+      body.dark-mode tr:nth-child(even) {
+        background-color: #303030;
+      }
+      body.dark-mode tr:hover {
+        background-color: #383838;
+      }
+      body.dark-mode .failed-true {
+        background-color: rgba(255, 80, 80, 0.2);
+      } /* Darker red tint */
+      body.dark-mode .failed-false {
+        background-color: rgba(80, 255, 80, 0.1);
+      } /* Darker green tint */
+      body.dark-mode .details {
+        background-color: #333;
+      }
+      body.dark-mode .details pre {
+        background-color: #2a2a2a;
+        border: 1px solid #555;
+        color: #f0f0f0;
+      }
+      body.dark-mode .toggle-details {
+        color: #64b5f6;
+      } /* Lighter blue for dark mode */
+      body.dark-mode #summary {
+        background-color: #333;
+        color: #e0e0e0;
+      }
+      body.dark-mode a {
+        color: #64b5f6;
+      }
+
+      :root {
+        --primary: #3498db;
+        --primary-dark: #2980b9;
+        --accent: #e74c3c;
+        --success: #2ecc71;
+        --warning: #f39c12;
+        --error: #e74c3c;
+        --info: #1abc9c;
+        --redirect: #9b59b6;
+        --background: #f4f6f7;
+        --card-bg: #ffffff;
+        --text-dark: #2c3e50;
+        --text-light: #7f8c8d;
+        --border: #ecf0f1;
+        --hover: #f0f5f9;
+        --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        --shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: var(--font-family);
+      }
+      body {
+        background-color: var(--background);
+        color: var(--text-dark);
+        line-height: 1.6;
+        padding: 25px;
+      }
+      .container {
+        max-width: 1400px; /* Wider container */
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid var(--border);
+      }
+      h1 {
+        font-size: 32px; /* Larger title */
+        font-weight: 600; /* Slightly bolder */
+        color: var(--primary);
+      }
+      .upload-container,
+      .stats-container,
+      .filters-container,
+      .results-container {
+        background-color: var(--card-bg);
+        border-radius: 10px; /* Smoother radius */
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: var(--shadow);
+      }
+      .upload-area {
+        border: 2px dashed var(--primary);
+        border-radius: 8px;
+        padding: 50px 30px; /* More padding */
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        background-color: #fdfdfe;
+      }
+      .upload-area:hover {
+        border-color: var(--accent);
+        background-color: rgba(231, 76, 60, 0.03);
+      }
+      .upload-area.dragover {
+        border-color: var(--success);
+        border-style: solid;
+        background-color: rgba(46, 204, 113, 0.05);
+      }
+      .upload-area input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .upload-icon {
+        font-size: 54px; /* Larger icon */
+        color: var(--primary);
+        margin-bottom: 15px;
+      }
+      .upload-text {
+        font-size: 16px;
+        color: var(--text-light);
+      }
+      .stats-container {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(180px, 1fr)
+        ); /* Adjusted minmax */
+        gap: 25px;
+      }
+      .stat-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid var(--border); /* Subtle border */
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      }
+      .stat-value {
+        font-size: 38px; /* Larger value */
+        font-weight: 700; /* Bolder */
+        margin-bottom: 5px;
+        color: var(--primary);
+      }
+      .stat-label {
+        font-size: 14px;
+        color: var(--text-light);
+        font-weight: 500;
+      }
+      .filters-container h3 {
+        margin-bottom: 20px;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+      }
+      .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(220px, 1fr)
+        ); /* Wider filter inputs */
+        gap: 20px;
+      }
+      .filter-group {
+        margin-bottom: 10px;
+      }
+      .filter-group label {
+        display: block;
+        margin-bottom: 8px; /* More space */
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .filter-group input,
+      .filter-group select {
+        width: 100%;
+        padding: 10px 14px; /* Larger padding */
+        border: 1px solid #ced4da; /* Standard border */
+        border-radius: 6px; /* Slightly larger radius */
+        font-size: 14px;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .filter-group input:focus,
+      .filter-group select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        outline: none;
+      }
+      /* Technology Filter Specific Styles */
+      #tech-filter-container {
+        position: relative;
+      }
+      #tech-filter {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      #tech-dropdown {
+        display: none;
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        z-index: 10;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        margin-top: 2px;
+      }
+      #tech-dropdown div {
+        padding: 8px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+      }
+      #tech-dropdown div:hover {
+        background-color: var(--hover);
+      }
+      #tech-dropdown input[type="checkbox"] {
+        margin-right: 8px;
+      }
+      #selected-techs {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .tech-pill {
+        background-color: var(--info);
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tech-pill button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+      }
+      .filter-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px; /* More space */
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      button {
+        padding: 10px 20px; /* Larger buttons */
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500; /* Medium weight */
+        transition: all 0.3s ease;
+      }
+      .btn-primary {
+        background-color: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        background-color: var(--primary-dark);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .btn-secondary {
+        background-color: #6c757d; /* Bootstrap secondary */
+        color: white;
+      }
+      .btn-secondary:hover {
+        background-color: #5a6268;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .btn-success {
+        background-color: var(--success);
+        color: white;
+      }
+      .btn-success:hover {
+        background-color: #28a745;
+      }
+      .results-container h3 {
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+      .results-table-wrapper {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        text-align: left;
+        padding: 14px 18px; /* More padding */
+        background-color: #e9ecef; /* Light grey header */
+        color: var(--text-dark);
+        font-weight: 600;
+        position: relative;
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 2px solid #dee2e6;
+      }
+      th:hover {
+        background-color: #dde2e6;
+      }
+      th::after {
+        content: "";
+        position: absolute;
+        right: 8px;
+        font-size: 12px;
+        opacity: 0.5;
+      }
+      th.sort-asc::after {
+        content: "▲";
+        opacity: 1;
+      }
+      th.sort-desc::after {
+        content: "▼";
+        opacity: 1;
+      }
+      td {
+        padding: 12px 18px; /* More padding */
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle; /* Align content vertically */
+      }
+      tr:hover {
+        background-color: var(--hover);
+      }
+      .status-pill {
+        padding: 5px 10px; /* Slightly larger */
+        border-radius: 15px; /* More rounded */
+        font-size: 12px;
+        color: white;
+        display: inline-block;
+        text-align: center;
+        min-width: 85px;
+        font-weight: 600; /* Bolder */
+        letter-spacing: 0.5px;
+      }
+      .status-2xx {
+        background-color: var(--success);
+      }
+      .status-3xx {
+        background-color: var(--redirect);
+      }
+      .status-4xx {
+        background-color: var(--warning);
+        color: #333; /* Better contrast for yellow */
+      }
+      .status-5xx {
+        background-color: var(--error);
+      }
+      .expand-row {
+        cursor: pointer;
+        font-size: 20px;
+        color: var(--primary);
+        text-align: center;
+        width: 50px; /* Fixed width */
+      }
+      .details-row {
+        display: none;
+        background-color: #f8f9fa; /* Slightly different bg */
+      }
+      .details-content {
+        padding: 20px 25px; /* More padding */
+      }
+      .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px 25px; /* Row and column gap */
+      }
+      .detail-group {
+        margin-bottom: 10px;
+      }
+      .detail-label {
+        font-weight: 600; /* Bolder label */
+        font-size: 12px;
+        color: var(--text-light);
+        margin-bottom: 4px;
+        text-transform: uppercase; /* Uppercase label */
+        letter-spacing: 0.5px;
+      }
+      .detail-value {
+        font-size: 14px;
+        word-break: break-all; /* Prevent overflow */
+      }
+      .tech-tag {
+        background-color: var(--info);
+        color: white;
+        padding: 3px 8px; /* Match pill style */
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 5px;
+        margin-bottom: 5px;
+        display: inline-block;
+      }
+      .loader {
+        display: none;
+        text-align: center;
+        padding: 40px 20px; /* More padding */
+      }
+      .loader-spinner {
+        border: 5px solid rgba(0, 0, 0, 0.1); /* Thicker */
+        border-radius: 50%;
+        border-top: 5px solid var(--primary);
+        width: 50px; /* Larger */
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .notification {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        padding: 15px 25px;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+        transform: translateY(20px);
+        max-width: 350px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+      }
+      .notification.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .no-results {
+        text-align: center;
+        padding: 50px 20px; /* More padding */
+        color: var(--text-light);
+        font-size: 16px;
+      }
+      .hidden {
+        display: none !important; /* Use important to override */
+      }
+      /* Pagination Styles */
+      .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        margin-top: 10px;
+      }
+      .pagination-controls button,
+      .pagination-controls span {
+        /* Style spans too */
+        margin: 0 3px; /* Reduced margin slightly */
+        padding: 8px 12px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border);
+        color: var(--primary);
+        cursor: pointer;
+        border-radius: 4px; /* Add radius */
+        display: inline-block; /* Ensure spans align */
+        vertical-align: middle;
+      }
+      .pagination-controls span {
+        /* Style spans differently */
+        cursor: default;
+        background: none;
+        border: none;
+        padding: 8px 4px; /* Less padding for ellipsis */
+      }
+      .pagination-controls button:disabled {
+        color: var(--text-light);
+        cursor: not-allowed;
+        background-color: var(--background);
+      }
+      .pagination-controls button.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        font-weight: bold;
+      }
+      .pagination-info {
+        font-size: 14px;
+        color: var(--text-light);
+      }
+
+      /* Responsive Styles */
+      @media (max-width: 992px) {
+        .filters-grid {
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        .details-grid {
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        }
+      }
+      @media (max-width: 768px) {
+        body {
+          padding: 15px;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .stats-container {
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 15px;
+        }
+        .filters-grid {
+          grid-template-columns: 1fr; /* Stack filters */
+        }
+        th,
+        td {
+          padding: 10px 12px;
+          font-size: 13px;
+        }
+        .pagination-container {
+          flex-direction: column;
+          gap: 10px;
+          padding: 15px 0;
+        }
+        .pagination-controls {
+          text-align: center; /* Center buttons on small screens */
+        }
+      }
+      @media (max-width: 480px) {
+        .stats-container {
+          grid-template-columns: 1fr;
+        }
+        .upload-area {
+          padding: 30px 15px;
+        }
+        button {
+          padding: 8px 15px;
+          font-size: 13px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+        .pagination-controls button,
+        .pagination-controls span {
+          padding: 6px 10px; /* Smaller padding */
+          margin: 0 2px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>HTTPX Output Visualizer</h1>
+
+    <div id="drop-area">
+      <form class="drop-form">
+        <p>
+          Drag and drop your httpx JSON output file (.json, .txt, .log) here, or
+          click to select file.
+        </p>
+        <input
+          type="file"
+          id="file-input"
+          accept=".json,.txt,.log,application/json,text/plain"
+        />
+      </form>
+    </div>
+
+    <div id="controls">
+      <label for="status-code-filter">Status:</label>
+      <input
+        type="text"
+        id="status-code-filter"
+        placeholder="e.g., 200, !404, 5xx"
+      />
+
+      <label for="tech-filter">Tech:</label>
+      <input type="text" id="tech-filter" placeholder="e.g., nginx, react" />
+
+      <label for="title-filter">Title:</label>
+      <input
+        type="text"
+        id="title-filter"
+        placeholder="e.g., dashboard, login"
+      />
+
+      <label for="url-filter">URL:</label>
+      <input type="text" id="url-filter" placeholder="e.g., admin, .php" />
+
+      <label for="failed-filter">Failed:</label>
+      <select id="failed-filter">
+        <option value="">All</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+
+      <button onclick="applyFilters()">Apply Filters</button>
+      <button onclick="resetFilters()">Reset Filters</button>
+      <button id="toggle-dark-mode">Toggle Dark Mode</button>
+    </div>
+
+    <div id="summary">Upload or drop a file to begin.</div>
+    <div id="results">
+      <table id="results-table" style="display: none">
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Title</th>
+            <th>Tech</th>
+            <th>Length</th>
+            <th>Failed</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <!-- Data rows will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      let allData = [];
+      let currentDisplayData = [];
+      const dropArea = document.getElementById("drop-area");
+      const fileInput = document.getElementById("file-input");
+      const resultsTable = document.getElementById("results-table");
+      const resultsBody = document.getElementById("results-body");
+      const resultsContainer = document.getElementById("results");
+      const summaryDiv = document.getElementById("summary");
+      const controlsDiv = document.getElementById("controls");
+
+      // --- Event Listeners ---
+
+      // Drag and drop listeners
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false); // Prevent browser from opening file globally
+      });
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropArea.addEventListener(
+          eventName,
+          () => dropArea.classList.add("highlight"),
+          false,
+        );
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropArea.addEventListener(
+          eventName,
+          () => dropArea.classList.remove("highlight"),
+          false,
+        );
+      });
+
+      dropArea.addEventListener("drop", handleDrop, false);
+      dropArea.addEventListener("click", () => fileInput.click()); // Make drop area clickable
+      fileInput.addEventListener("change", handleFileSelect, false); // Handle file selection via click
+
+      // Filter input listeners (optional: trigger filter on Enter key)
+      controlsDiv.querySelectorAll('input[type="text"]').forEach((input) => {
+        input.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            applyFilters();
+          }
+        });
+      });
+      controlsDiv
+        .querySelector("select")
+        .addEventListener("change", applyFilters);
+
+      // --- Core Functions ---
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+          handleFiles(files);
+        } else {
+          // Handle potential text drop (though file drop is primary)
+          const textData = dt.getData("text/plain");
+          if (textData) {
+            console.log("Handling dropped text data.");
+            processFileContent(textData);
+          }
+        }
+      }
+
+      function handleFileSelect(e) {
+        handleFiles(e.target.files);
+        // Reset file input value to allow re-uploading the same file
+        e.target.value = null;
+      }
+
+      function handleFiles(files) {
+        if (files.length > 0) {
+          const file = files[0];
+          // More robust check for file type (accept common extensions and mime types)
+          const allowedExtensions = [".json", ".txt", ".log"];
+          const allowedMimeTypes = ["application/json", "text/plain"];
+          const fileExtension = "." + file.name.split(".").pop().toLowerCase();
+
+          if (
+            allowedExtensions.includes(fileExtension) ||
+            allowedMimeTypes.includes(file.type)
+          ) {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+              processFileContent(event.target.result);
+            };
+            reader.onerror = function (event) {
+              console.error(
+                "File could not be read! Code " + event.target.error.code,
+              );
+              showError("Error reading the selected file.");
+            };
+            // Display loading state
+            summaryDiv.textContent = `Processing file: ${file.name}...`;
+            resultsTable.style.display = "none";
+            resultsBody.innerHTML = ""; // Clear old results immediately
+            reader.readAsText(file);
+          } else {
+            showError(
+              `Invalid file type. Please upload a .json, .txt, or .log file. Detected type: ${file.type || "unknown"}, name: ${file.name}`,
+            );
+          }
+        }
+      }
+
+      function processFileContent(fileContent) {
+        try {
+          allData = parseHttpxOutput(fileContent);
+          if (!Array.isArray(allData)) {
+            throw new Error("Parsed data is not in the expected array format.");
+          }
+          console.log(`Successfully parsed ${allData.length} records.`);
+          applyFilters(); // Apply default or existing filters
+          resultsContainer.style.display = "block"; // Ensure results area is visible
+          resultsTable.style.display = "table"; // Show table
+        } catch (error) {
+          console.error("Error processing file content:", error);
+          showError(
+            `Error processing file: ${error.message}. Check if it's valid JSON or line-delimited JSON.`,
+          );
+          allData = []; // Clear data on error
+          currentDisplayData = [];
+          renderTable([]); // Render empty state
+          updateSummary(0, 0);
+          resultsTable.style.display = "none";
+        }
+      }
+
+      function parseHttpxOutput(content) {
+        content = content.trim();
+        if (!content) {
+          return []; // Return empty array for empty content
+        }
+
+        let parsedData = [];
+        let parseErrors = 0;
+
+        // 1. Try parsing as line-delimited JSON first (common httpx -json output)
+        const lines = content.split(/[\r\n]+/); // Split by newline characters
+        let looksLikeNdjson = false;
+        if (lines.length > 1) {
+          // Basic heuristic: if multiple lines exist and the first one parses as JSON
+          try {
+            JSON.parse(lines[0].trim());
+            looksLikeNdjson = true;
+            console.log("Attempting line-delimited JSON parsing.");
+          } catch (e) {
+            looksLikeNdjson = false;
+            console.log(
+              "First line doesn't look like JSON, will try parsing as single entity.",
+            );
+          }
+        } else if (lines.length === 1 && lines[0].startsWith("{")) {
+          // If only one line, it might be NDJSON or a single JSON object/array
+          // We'll try NDJSON logic first, then fall back
+          looksLikeNdjson = true; // Assume single line can be NDJSON
+        }
+
+        if (looksLikeNdjson) {
+          lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine) {
+              // Ignore empty lines
+              try {
+                parsedData.push(JSON.parse(trimmedLine));
+              } catch (e) {
+                console.warn(
+                  `Failed to parse line ${index + 1} as JSON: ${trimmedLine.substring(0, 100)}...`,
+                  e.message,
+                );
+                parseErrors++;
+                // Decide whether to stop or continue on error. Continue for robustness.
+              }
+            }
+          });
+
+          if (parsedData.length > 0) {
+            console.log(
+              `Parsed ${parsedData.length} lines as line-delimited JSON.`,
+            );
+            if (parseErrors > 0) {
+              console.warn(`${parseErrors} lines failed JSON parsing.`);
+              // Optionally alert the user about partial success later if needed
+            }
+            return parsedData; // Return successfully parsed lines
+          } else if (parseErrors > 0 && lines.length > 0) {
+            // If line-by-line parsing failed for all lines, throw specific error before trying single parse
+            throw new Error(
+              "Content looked like line-delimited JSON, but failed to parse any lines.",
+            );
+          }
+          // If looksLikeNdjson was true but parsedData is empty (e.g., only whitespace lines), fall through
+        }
+
+        // 2. If not line-delimited (or parsing failed), try parsing as a single JSON array/object
+        console.log("Attempting to parse content as a single JSON entity.");
+        try {
+          const jsonData = JSON.parse(content);
+          if (Array.isArray(jsonData)) {
+            console.log("Successfully parsed as a JSON array.");
+            return jsonData; // It's an array of objects
+          } else if (typeof jsonData === "object" && jsonData !== null) {
+            console.log(
+              "Successfully parsed as a single JSON object. Wrapping in an array.",
+            );
+            return [jsonData]; // Wrap single object in an array for consistency
+          } else {
+            throw new Error("Parsed content is not a JSON array or object.");
+          }
+        } catch (e) {
+          console.error("Failed to parse content as a single JSON entity.", e);
+          // If we already tried line-by-line and failed, and single parse failed, throw the final error.
+          if (looksLikeNdjson && parseErrors > 0) {
+            throw new Error(
+              `Failed to parse as line-delimited JSON (${parseErrors} errors) and also failed as single JSON.`,
+            );
+          } else {
+            throw new Error(
+              "Could not parse content. Ensure it's valid JSON or line-delimited JSON (ndjson).",
+            );
+          }
+        }
+      }
+
+      function applyFilters() {
+        const statusCodeFilter = document
+          .getElementById("status-code-filter")
+          .value.trim();
+        const techFilter = document
+          .getElementById("tech-filter")
+          .value.trim()
+          .toLowerCase();
+        const titleFilter = document
+          .getElementById("title-filter")
+          .value.trim()
+          .toLowerCase();
+        const urlFilter = document
+          .getElementById("url-filter")
+          .value.trim()
+          .toLowerCase();
+        const failedFilter = document.getElementById("failed-filter").value;
+
+        currentDisplayData = allData.filter((item) => {
+          let statusMatch = filterStatusCode(
+            item.status_code,
+            statusCodeFilter,
+          );
+          let techMatch = filterTextContains(
+            (item.tech || []).join(" "),
+            techFilter,
+          ); // Join tech array for simple search
+          let titleMatch = filterTextContains(item.title || "", titleFilter);
+          let urlMatch = filterTextContains(
+            item.url || item.input || "",
+            urlFilter,
+          ); // Check URL or input
+          let failedMatch = filterBoolean(
+            item.failed === true || !!item.error,
+            failedFilter,
+          ); // Check explicit 'failed' or presence of 'error'
+
+          return (
+            statusMatch && techMatch && titleMatch && urlMatch && failedMatch
+          );
+        });
+
+        renderTable(currentDisplayData);
+        updateSummary(currentDisplayData.length, allData.length);
+      }
+
+      // --- Filter Helper Functions ---
+
+      function filterStatusCode(itemStatusCode, filterValue) {
+        if (!filterValue) return true; // No filter applied
+
+        const itemStatus =
+          itemStatusCode === undefined || itemStatusCode === null
+            ? 0
+            : Number(itemStatusCode); // Default to 0 or handle non-numeric?
+        if (isNaN(itemStatus)) return false; // Don't match if status is not a number
+
+        const conditions = filterValue
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "");
+        let match = false;
+        let hasIncludeCondition = false;
+
+        for (const condition of conditions) {
+          const negate = condition.startsWith("!");
+          const codeString = negate ? condition.substring(1) : condition;
+
+          // Handle range notation (e.g., 4xx, 500-599)
+          let rangeMatch = false;
+          if (codeString.toLowerCase().endsWith("xx")) {
+            // e.g., 4xx
+            const base = parseInt(codeString[0]) * 100;
+            if (!isNaN(base)) {
+              rangeMatch = itemStatus >= base && itemStatus < base + 100;
+            }
+          } else if (codeString.includes("-")) {
+            // e.g., 500-599
+            const parts = codeString.split("-");
+            const start = parseInt(parts[0]);
+            const end = parseInt(parts[1]);
+            if (!isNaN(start) && !isNaN(end)) {
+              rangeMatch = itemStatus >= start && itemStatus <= end;
+            }
+          }
+
+          if (rangeMatch) {
+            if (negate) return false; // If it matches an excluded range, fail immediately
+            match = true;
+            hasIncludeCondition = true;
+          } else {
+            // Handle specific code match
+            const code = parseInt(codeString);
+            if (!isNaN(code)) {
+              if (negate) {
+                if (itemStatus === code) return false; // Excluded specific code
+              } else {
+                if (itemStatus === code) match = true;
+                hasIncludeCondition = true;
+              }
+            }
+          }
+        }
+
+        // If only negative conditions exist, default match is true unless an exclusion matched
+        if (!hasIncludeCondition && conditions.some((c) => c.startsWith("!")))
+          return true;
+
+        return match;
+      }
+
+      function filterTextContains(itemText, filterValue) {
+        if (!filterValue) return true;
+        return String(itemText || "")
+          .toLowerCase()
+          .includes(filterValue);
+      }
+
+      function filterBoolean(itemValue, filterValue) {
+        if (filterValue === "") return true; // 'All' selected
+        const filterBool = filterValue === "true";
+        return itemValue === filterBool;
+      }
+
+      // --- Rendering Functions ---
+
+      function renderTable(data) {
+        resultsBody.innerHTML = ""; // Clear previous results
+
+        if (data.length === 0) {
+          const message =
+            allData.length > 0
+              ? "No results match your filters."
+              : "No data loaded or data is empty.";
+          const messageRow = resultsBody.insertRow();
+          const cell = messageRow.insertCell();
+          cell.colSpan = 7;
+          cell.textContent = message;
+          cell.style.textAlign = "center";
+          cell.style.padding = "20px";
+          return;
+        }
+
+        data.forEach((item, index) => {
+          const row = resultsBody.insertRow();
+          const isFailed = item.failed === true || !!item.error; // Consider failed or if error exists
+
+          // URL Cell
+          const urlCell = row.insertCell();
+          const displayUrl = item.url || item.input || "N/A";
+          urlCell.innerHTML =
+            displayUrl !== "N/A"
+              ? `<a href="${item.url || "#"}" target="_blank" title="${displayUrl}">${truncateText(displayUrl, 60)}</a>`
+              : "N/A";
+
+          // Status Code Cell
+          const statusCell = row.insertCell();
+          const statusCode = item.status_code;
+          const displayStatus =
+            statusCode !== undefined && statusCode !== null
+              ? statusCode
+              : item.error
+                ? "ERR"
+                : "N/A";
+          statusCell.textContent = displayStatus;
+          statusCell.title = item.error
+            ? item.error
+            : `Status: ${displayStatus}`; // Show error in title
+          statusCell.classList.add("status-cell"); // Add class for potential styling
+          if (typeof statusCode === "number") {
+            if (statusCode >= 200 && statusCode < 300)
+              statusCell.classList.add("status-success");
+            else if (statusCode >= 400)
+              statusCell.classList.add("status-error");
+            else if (statusCode >= 300 && statusCode < 400)
+              statusCell.classList.add("status-other"); // Redirects
+            // Add more ranges if needed
+          } else if (displayStatus === "ERR") {
+            statusCell.classList.add("status-error");
+          }
+
+          // Title Cell
+          row.insertCell().textContent = truncateText(item.title || "", 50);
+          row.cells[2].title = item.title || ""; // Full title on hover
+
+          // Tech Cell
+          row.insertCell().textContent = truncateText(
+            (item.tech || []).join(", "),
+            40,
+          );
+          row.cells[3].title = (item.tech || []).join(", "); // Full tech on hover
+
+          // Content Length Cell
+          row.insertCell().textContent =
+            item.content_length !== undefined ? item.content_length : "N/A";
+
+          // Failed Cell
+          const failedCell = row.insertCell();
+          failedCell.textContent = isFailed ? "Yes" : "No";
+          row.classList.add(isFailed ? "failed-true" : "failed-false");
+
+          // Details Toggle Cell
+          const detailsToggleCell = row.insertCell();
+          const detailsId = `details-${index}`;
+          detailsToggleCell.innerHTML = `<span class="toggle-details" onclick="toggleDetails(this, '${detailsId}')" role="button" aria-expanded="false" aria-controls="${detailsId}">Show</span>`;
+
+          // Hidden Row for Details (created on demand now for better performance)
+        });
+      }
+
+      function toggleDetails(buttonElement, detailsId) {
+        const mainRow = buttonElement.closest("tr");
+        const tableBody = mainRow.parentNode;
+        const existingDetailsRow = document.getElementById(detailsId);
+
+        if (existingDetailsRow) {
+          // Details row exists, toggle its visibility
+          const isHidden = existingDetailsRow.style.display === "none";
+          existingDetailsRow.style.display = isHidden ? "table-row" : "none";
+          buttonElement.textContent = isHidden ? "Hide" : "Show";
+          buttonElement.setAttribute(
+            "aria-expanded",
+            isHidden ? "true" : "false",
+          );
+        } else {
+          // Details row doesn't exist, create it
+          const itemIndex = parseInt(detailsId.split("-")[1]);
+          const item = currentDisplayData[itemIndex]; // Get data for this row
+
+          if (!item) return; // Should not happen
+
+          const detailsRow = tableBody.insertRow(mainRow.rowIndex); // Insert after main row
+          detailsRow.id = detailsId;
+          detailsRow.classList.add("details");
+          const detailsCellContent = detailsRow.insertCell();
+          detailsCellContent.colSpan = 7; // Span across all columns
+
+          // Format details nicely into the <pre> block
+          let detailsHTML = "<pre>";
+          const keyOrder = [
+            "input",
+            "url",
+            "status_code",
+            "title",
+            "content_length",
+            "failed",
+            "error",
+            "tech",
+            "cdn_name",
+            "host",
+            "a",
+            "cname",
+            "timestamp",
+            "time",
+          ]; // Prioritize certain keys
+
+          // Add prioritized keys first
+          keyOrder.forEach((key) => {
+            if (item.hasOwnProperty(key)) {
+              detailsHTML += formatDetailLine(key, item[key]);
+              delete item[key]; // Remove from item to avoid duplication
+            }
+          });
+
+          // Add remaining keys
+          for (const key in item) {
+            if (item.hasOwnProperty(key)) {
+              // Check ownership again
+              detailsHTML += formatDetailLine(key, item[key]);
+            }
+          }
+
+          detailsHTML += "</pre>";
+          detailsCellContent.innerHTML = detailsHTML;
+
+          // Update button state
+          buttonElement.textContent = "Hide";
+          buttonElement.setAttribute("aria-expanded", "true");
+        }
+      }
+
+      function formatDetailLine(key, value) {
+        let formattedValue;
+        if (value === null || value === undefined) {
+          formattedValue = "N/A";
+        } else if (typeof value === "object") {
+          try {
+            formattedValue = JSON.stringify(value, null, 2);
+          } catch (e) {
+            formattedValue = "[Circular Object]";
+          }
+        } else {
+          formattedValue = String(value);
+        }
+        // Basic HTML escaping for safety
+        formattedValue = formattedValue
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return `<strong>${key}:</strong> ${formattedValue}\n`;
+      }
+
+      function updateSummary(filteredCount, totalCount) {
+        if (totalCount > 0) {
+          summaryDiv.textContent = `Showing ${filteredCount} of ${totalCount} total records.`;
+        } else if (
+          allData.length === 0 &&
+          !resultsContainer.querySelector(".error-message")
+        ) {
+          // Only reset if no error shown
+          summaryDiv.textContent = "Upload or drop a file to begin.";
+        }
+        // If there's an error message, summary will be handled by showError
+      }
+
+      function resetFilters() {
+        document.getElementById("status-code-filter").value = "";
+        document.getElementById("tech-filter").value = "";
+        document.getElementById("title-filter").value = "";
+        document.getElementById("url-filter").value = "";
+        document.getElementById("failed-filter").value = "";
+        // Reset sort state if implemented
+        applyFilters(); // Re-apply empty filters to show all data
+      }
+
+      function showError(message) {
+        summaryDiv.textContent = message;
+        summaryDiv.style.color = "red"; // Or add an error class
+        resultsTable.style.display = "none"; // Hide table on error
+        resultsContainer.style.display = "block"; // Ensure container is visible to show message
+        // Optionally, add a specific element for the error message instead of using summaryDiv
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error-message"; // For specific styling
+        errorDiv.style.color = document.body.classList.contains("dark-mode")
+          ? "#ff8a80"
+          : "#dc3545"; // Dark/Light mode error color
+        errorDiv.style.padding = "10px";
+        errorDiv.style.border = "1px solid red";
+        errorDiv.style.marginTop = "10px";
+        errorDiv.textContent = message;
+        // Clear previous errors
+        const existingError = resultsContainer.querySelector(".error-message");
+        if (existingError) existingError.remove();
+        // Add new error message
+        resultsContainer.insertBefore(errorDiv, resultsTable); // Insert error above the (hidden) table
+        summaryDiv.textContent = "Error processing file."; // Keep summary brief
+      }
+
+      function truncateText(text, maxLength) {
+        if (!text) return "";
+        if (text.length <= maxLength) {
+          return text;
+        }
+        return text.substring(0, maxLength - 3) + "...";
+      }
+
+      // --- Dark Mode ---
+      const toggleDarkModeButton = document.getElementById("toggle-dark-mode");
+
+      function setDarkMode(isDark) {
+        if (isDark) {
+          document.body.classList.add("dark-mode");
+          localStorage.setItem("darkMode", "enabled");
+          toggleDarkModeButton.textContent = "Light Mode";
+        } else {
+          document.body.classList.remove("dark-mode");
+          localStorage.removeItem("darkMode");
+          toggleDarkModeButton.textContent = "Dark Mode";
+        }
+        // Re-render table if needed to apply new styles correctly, especially for error messages/colors
+        // applyFilters(); // This might be too heavy, test if needed
+      }
+
+      toggleDarkModeButton.addEventListener("click", () => {
+        setDarkMode(!document.body.classList.contains("dark-mode"));
+      });
+
+      // Check for saved dark mode preference on load
+      if (
+        localStorage.getItem("darkMode") === "enabled" ||
+        (window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches &&
+          localStorage.getItem("darkMode") !== "disabled")
+      ) {
+        setDarkMode(true);
+      } else {
+        setDarkMode(false);
+      }
+      // Listen for OS theme changes
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (event) => {
+          // Respect user's explicit choice if they toggled, otherwise follow OS
+          if (!localStorage.getItem("darkMode")) {
+            // Only follow OS if no explicit choice saved
+            setDarkMode(event.matches);
+          }
+        });
+
+      // --- Initial State ---
+      resultsTable.style.display = "none"; // Hide table initially
+    </script>
+  </body>
+</html>
